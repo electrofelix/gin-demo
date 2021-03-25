@@ -4,13 +4,13 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
-	"github.com/rs/xid"
 	"github.com/sirupsen/logrus"
 
 	"github.com/electrofelix/gin-demo/entity"
@@ -18,6 +18,10 @@ import (
 
 const (
 	key = "UserInfo"
+)
+
+var (
+	ErrBlankEmail = errors.New("email cannot be blank")
 )
 
 type DynamoDBOptions = func(*dynamodb.Options)
@@ -78,7 +82,7 @@ func (us *UserService) InitializeTable(ctx context.Context) error {
 		TableName: &us.tableName,
 		AttributeDefinitions: []types.AttributeDefinition{
 			{
-				AttributeName: aws.String("Id"),
+				AttributeName: aws.String("Email"),
 				AttributeType: types.ScalarAttributeTypeS,
 			},
 			{
@@ -88,7 +92,7 @@ func (us *UserService) InitializeTable(ctx context.Context) error {
 		},
 		KeySchema: []types.KeySchemaElement{
 			{
-				AttributeName: aws.String("Id"),
+				AttributeName: aws.String("Email"),
 				KeyType:       types.KeyTypeHash,
 			},
 			{
@@ -110,9 +114,35 @@ func (us *UserService) InitializeTable(ctx context.Context) error {
 	return nil
 }
 
-func (us *UserService) Delete(ctx context.Context, id string) (entity.User, error) {
+func (us *UserService) Create(ctx context.Context, user entity.User) (entity.User, error) {
+	item, err := attributevalue.MarshalMap(user)
+	if err != nil {
+		us.logger.Errorf("Marshal failed for user (%s): %v", user.Email, err)
 
-	item, err := us.Get(ctx, id)
+		return entity.User{}, err
+	}
+
+	item["objectType"] = &types.AttributeValueMemberS{Value: key}
+
+	putItem := dynamodb.PutItemInput{
+		Item:                item,
+		TableName:           aws.String(us.tableName),
+		ConditionExpression: aws.String(fmt.Sprintf("Email <> %s", user.Email)),
+	}
+
+	_, err = us.dynamodbClient.PutItem(ctx, &putItem)
+	if err != nil {
+		us.logger.Errorf("error putting item %s: %v", key, item["Email"])
+
+		return entity.User{}, err
+	}
+
+	return user, nil
+}
+
+func (us *UserService) Delete(ctx context.Context, email string) (entity.User, error) {
+
+	item, err := us.Get(ctx, email)
 	if err != nil {
 		us.logger.Errorf("error retrieving item before delete: %v", err)
 
@@ -121,7 +151,7 @@ func (us *UserService) Delete(ctx context.Context, id string) (entity.User, erro
 
 	deleteItem := dynamodb.DeleteItemInput{
 		Key: map[string]types.AttributeValue{
-			"Id":         &types.AttributeValueMemberS{Value: id},
+			"Email":      &types.AttributeValueMemberS{Value: email},
 			"objectType": &types.AttributeValueMemberS{Value: key},
 		},
 		TableName: aws.String(us.tableName),
@@ -139,14 +169,14 @@ func (us *UserService) Delete(ctx context.Context, id string) (entity.User, erro
 	return item, nil
 }
 
-func (us *UserService) Get(ctx context.Context, id string) (entity.User, error) {
-	if _, err := xid.FromString(id); err != nil {
-		return entity.User{}, err
+func (us *UserService) Get(ctx context.Context, email string) (entity.User, error) {
+	if email == "" {
+		return entity.User{}, ErrBlankEmail
 	}
 
 	getItem := dynamodb.GetItemInput{
 		Key: map[string]types.AttributeValue{
-			"Id": &types.AttributeValueMemberS{Value: id},
+			"Email": &types.AttributeValueMemberS{Value: email},
 			// using a sort key makes it easier to split the object into
 			// multiple pieces for storing if needed in the future as the object grows
 			"objectType": &types.AttributeValueMemberS{Value: key},
@@ -199,13 +229,13 @@ func (us *UserService) List(ctx context.Context) ([]entity.User, error) {
 }
 
 func (us *UserService) Put(ctx context.Context, user entity.User) (entity.User, error) {
-	if _, err := xid.FromString(user.Id); err != nil {
-		return entity.User{}, err
+	if user.Email == "" {
+		return entity.User{}, ErrBlankEmail
 	}
 
 	item, err := attributevalue.MarshalMap(user)
 	if err != nil {
-		us.logger.Errorf("Marshal failed for user (%s): %v", user.Id, err)
+		us.logger.Errorf("Marshal failed for user (%s): %v", user.Email, err)
 
 		return entity.User{}, err
 	}
@@ -219,7 +249,7 @@ func (us *UserService) Put(ctx context.Context, user entity.User) (entity.User, 
 
 	_, err = us.dynamodbClient.PutItem(ctx, &putItem)
 	if err != nil {
-		us.logger.Errorf("error putting item %s: %v", key, item["Id"])
+		us.logger.Errorf("error putting item %s: %v", key, item["Email"])
 
 		return entity.User{}, err
 	}

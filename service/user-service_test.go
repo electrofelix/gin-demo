@@ -27,15 +27,15 @@ func TestUserService_Delete(t *testing.T) {
 		svc := service.New(mockDBClient, tableName)
 
 		user := entity.User{
-			Id:   xid.New().String(),
-			Name: "test-user",
+			Email: "user1@example.com",
+			Name:  "test-user",
 		}
 
 		mockDBClient.EXPECT().GetItem(gomock.Any(), gomock.Any()).Return(
 			&dynamodb.GetItemOutput{
 				Item: map[string]types.AttributeValue{
-					"Id":   &types.AttributeValueMemberS{Value: user.Id},
-					"Name": &types.AttributeValueMemberS{Value: user.Name},
+					"Email": &types.AttributeValueMemberS{Value: user.Email},
+					"Name":  &types.AttributeValueMemberS{Value: user.Name},
 				},
 			},
 			nil,
@@ -43,7 +43,7 @@ func TestUserService_Delete(t *testing.T) {
 
 		mockDBClient.EXPECT().DeleteItem(gomock.Any(), gomock.Any()).Return(&dynamodb.DeleteItemOutput{}, nil)
 
-		got, err := svc.Delete(context.Background(), user.Id)
+		got, err := svc.Delete(context.Background(), user.Email)
 		require.NoError(t, err)
 
 		assert.Equal(t, user, got)
@@ -63,14 +63,14 @@ func TestUserService_Get(t *testing.T) {
 		svc := service.New(mockDBClient, tableName)
 
 		user := entity.User{
-			Id:   xid.New().String(),
-			Name: "test-user",
+			Email: "user1@example.com",
+			Name:  "test-user",
 		}
 
 		mockDBClient.EXPECT().GetItem(gomock.Any(), gomock.Any()).Return(
 			&dynamodb.GetItemOutput{
 				Item: map[string]types.AttributeValue{
-					"Id":         &types.AttributeValueMemberS{Value: user.Id},
+					"Email":      &types.AttributeValueMemberS{Value: user.Email},
 					"Name":       &types.AttributeValueMemberS{Value: user.Name},
 					"objectType": &types.AttributeValueMemberS{Value: "User"},
 				},
@@ -78,7 +78,7 @@ func TestUserService_Get(t *testing.T) {
 			nil,
 		)
 
-		got, err := svc.Get(context.Background(), user.Id)
+		got, err := svc.Get(context.Background(), user.Email)
 		require.NoError(t, err)
 
 		assert.Equal(t, user, got)
@@ -89,9 +89,6 @@ func TestUserService_Get(t *testing.T) {
 		svc := service.New(mockDBClient, tableName)
 
 		_, err := svc.Get(context.Background(), "")
-		assert.Error(t, err)
-
-		_, err = svc.Get(context.Background(), "bad-id")
 		assert.Error(t, err)
 	})
 
@@ -119,12 +116,12 @@ func TestUserService_List(t *testing.T) {
 
 		users := []entity.User{
 			{
-				Id:   xid.New().String(),
-				Name: "test-user1",
+				Email: "user1@example.com",
+				Name:  "test-user1",
 			},
 			{
-				Id:   xid.New().String(),
-				Name: "test-user2",
+				Email: "user2@example.com",
+				Name:  "test-user2",
 			},
 		}
 
@@ -132,12 +129,12 @@ func TestUserService_List(t *testing.T) {
 			&dynamodb.ScanOutput{
 				Items: []map[string]types.AttributeValue{
 					{
-						"Id":         &types.AttributeValueMemberS{Value: users[0].Id},
+						"Email":      &types.AttributeValueMemberS{Value: users[0].Email},
 						"Name":       &types.AttributeValueMemberS{Value: users[0].Name},
 						"objectType": &types.AttributeValueMemberS{Value: "User"},
 					},
 					{
-						"Id":         &types.AttributeValueMemberS{Value: users[1].Id},
+						"Email":      &types.AttributeValueMemberS{Value: users[1].Email},
 						"Name":       &types.AttributeValueMemberS{Value: users[1].Name},
 						"objectType": &types.AttributeValueMemberS{Value: "User"},
 					},
@@ -162,15 +159,15 @@ func TestUserService_Put(t *testing.T) {
 		svc := service.New(mockDBClient, tableName)
 
 		user := entity.User{
-			Id:   xid.New().String(),
-			Name: "test-user1",
+			Email: "user1@exmaple.com",
+			Name:  "test-user1",
 		}
 
 		mockDBClient.EXPECT().PutItem(gomock.Any(), gomock.Any()).Do(
 			func(ctx context.Context, input *dynamodb.PutItemInput) {
-				id := input.Item["Id"].(*types.AttributeValueMemberS)
+				email := input.Item["Email"].(*types.AttributeValueMemberS)
 
-				assert.Equal(t, user.Id, id.Value)
+				assert.Equal(t, user.Email, email.Value)
 			},
 		).Return(nil, nil)
 
