@@ -28,6 +28,12 @@ test: vendor
 	go test -race -v ./...
 .PHONY: test
 
+update-generated:
+	go mod tidy
+	go install -mod=mod github.com/golang/mock/mockgen
+	@echo "running go generate ./..."
+	@PATH=$(GOBIN):${PATH} go generate ./...
+
 clean:
 	rm -rf bin vendor
 .PHONY: clean
