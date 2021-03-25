@@ -75,6 +75,26 @@ func (mr *MockDynamoDBAPIMockRecorder) GetItem(arg0, arg1 interface{}, arg2 ...i
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetItem", reflect.TypeOf((*MockDynamoDBAPI)(nil).GetItem), varargs...)
 }
 
+// ListTables mocks base method.
+func (m *MockDynamoDBAPI) ListTables(arg0 context.Context, arg1 *dynamodb.ListTablesInput, arg2 ...func(*dynamodb.Options)) (*dynamodb.ListTablesOutput, error) {
+	m.ctrl.T.Helper()
+	varargs := []interface{}{arg0, arg1}
+	for _, a := range arg2 {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "ListTables", varargs...)
+	ret0, _ := ret[0].(*dynamodb.ListTablesOutput)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ListTables indicates an expected call of ListTables.
+func (mr *MockDynamoDBAPIMockRecorder) ListTables(arg0, arg1 interface{}, arg2 ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]interface{}{arg0, arg1}, arg2...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListTables", reflect.TypeOf((*MockDynamoDBAPI)(nil).ListTables), varargs...)
+}
+
 // PutItem mocks base method.
 func (m *MockDynamoDBAPI) PutItem(arg0 context.Context, arg1 *dynamodb.PutItemInput, arg2 ...func(*dynamodb.Options)) (*dynamodb.PutItemOutput, error) {
 	m.ctrl.T.Helper()

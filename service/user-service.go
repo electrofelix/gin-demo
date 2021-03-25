@@ -17,7 +17,7 @@ import (
 )
 
 const (
-	key = "User"
+	key = "UserInfo"
 )
 
 type DynamoDBOptions = func(*dynamodb.Options)
@@ -25,6 +25,7 @@ type DynamoDBOptions = func(*dynamodb.Options)
 type DynamoDBAPI interface {
 	GetItem(context.Context, *dynamodb.GetItemInput, ...DynamoDBOptions) (*dynamodb.GetItemOutput, error)
 	DeleteItem(context.Context, *dynamodb.DeleteItemInput, ...DynamoDBOptions) (*dynamodb.DeleteItemOutput, error)
+	ListTables(context.Context, *dynamodb.ListTablesInput, ...DynamoDBOptions) (*dynamodb.ListTablesOutput, error)
 	PutItem(context.Context, *dynamodb.PutItemInput, ...DynamoDBOptions) (*dynamodb.PutItemOutput, error)
 	Scan(context.Context, *dynamodb.ScanInput, ...DynamoDBOptions) (*dynamodb.ScanOutput, error)
 }
@@ -74,7 +75,7 @@ func (us *UserService) Delete(ctx context.Context, id string) (entity.User, erro
 	if err != nil {
 		us.logger.Errorf("error during delete: %v", err)
 
-		return entity.User{}, nil
+		return entity.User{}, err
 	}
 
 	return item, nil
@@ -99,7 +100,7 @@ func (us *UserService) Get(ctx context.Context, id string) (entity.User, error) 
 	if err != nil {
 		us.logger.Errorf("error during delete: %v", err)
 
-		return entity.User{}, nil
+		return entity.User{}, err
 	}
 
 	user := entity.User{}
@@ -115,7 +116,7 @@ func (us *UserService) Get(ctx context.Context, id string) (entity.User, error) 
 func (us *UserService) List(ctx context.Context) ([]entity.User, error) {
 	scanInput := dynamodb.ScanInput{
 		TableName:        aws.String(us.tableName),
-		FilterExpression: aws.String(fmt.Sprintf("objectType = %s", key)),
+		FilterExpression: aws.String(fmt.Sprintf("objectType <> %s", key)),
 	}
 
 	// ideally switch to using a secondary index based on the objectType
@@ -123,6 +124,8 @@ func (us *UserService) List(ctx context.Context) ([]entity.User, error) {
 	result, err := us.dynamodbClient.Scan(ctx, &scanInput)
 	if err != nil {
 		us.logger.Errorf("error during scan: %v", err)
+
+		return []entity.User{}, err
 	}
 
 	users := make([]entity.User, result.Count)
@@ -145,6 +148,8 @@ func (us *UserService) Put(ctx context.Context, user entity.User) (entity.User, 
 	item, err := attributevalue.MarshalMap(user)
 	if err != nil {
 		us.logger.Errorf("Marshal failed for user (%s): %v", user.Id, err)
+
+		return entity.User{}, err
 	}
 
 	item["objectType"] = &types.AttributeValueMemberS{Value: key}
