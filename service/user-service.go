@@ -23,6 +23,7 @@ const (
 type DynamoDBOptions = func(*dynamodb.Options)
 
 type DynamoDBAPI interface {
+	CreateTable(context.Context, *dynamodb.CreateTableInput, ...DynamoDBOptions) (*dynamodb.CreateTableOutput, error)
 	GetItem(context.Context, *dynamodb.GetItemInput, ...DynamoDBOptions) (*dynamodb.GetItemOutput, error)
 	DeleteItem(context.Context, *dynamodb.DeleteItemInput, ...DynamoDBOptions) (*dynamodb.DeleteItemOutput, error)
 	ListTables(context.Context, *dynamodb.ListTablesInput, ...DynamoDBOptions) (*dynamodb.ListTablesOutput, error)
@@ -50,6 +51,63 @@ func New(dynamodbClient DynamoDBAPI, dbTable string, options ...Option) *UserSer
 	}
 
 	return us
+}
+
+func (us *UserService) InitializeTable(ctx context.Context) error {
+	us.logger.Infoln("Table initializing")
+	// useful for dev environment, probably better to avoid granting
+	// permissions in a production environment if the data is critical
+	result, err := us.dynamodbClient.ListTables(ctx, &dynamodb.ListTablesInput{})
+	if err != nil {
+		return err
+	}
+
+	us.logger.Infoln("Found tables:", result.TableNames)
+
+	for _, name := range result.TableNames {
+		if name == us.tableName {
+			us.logger.Infof("table '%s' already exists, skipping initialization", us.tableName)
+
+			return nil
+		}
+	}
+
+	us.logger.Infof("table '%s' not found, attemting bootstrap", us.tableName)
+
+	_, err = us.dynamodbClient.CreateTable(ctx, &dynamodb.CreateTableInput{
+		TableName: &us.tableName,
+		AttributeDefinitions: []types.AttributeDefinition{
+			{
+				AttributeName: aws.String("Id"),
+				AttributeType: types.ScalarAttributeTypeS,
+			},
+			{
+				AttributeName: aws.String("objectType"),
+				AttributeType: types.ScalarAttributeTypeS,
+			},
+		},
+		KeySchema: []types.KeySchemaElement{
+			{
+				AttributeName: aws.String("Id"),
+				KeyType:       types.KeyTypeHash,
+			},
+			{
+				AttributeName: aws.String("objectType"),
+				KeyType:       types.KeyTypeRange,
+			},
+		},
+		ProvisionedThroughput: &types.ProvisionedThroughput{
+			ReadCapacityUnits:  aws.Int64(5),
+			WriteCapacityUnits: aws.Int64(5),
+		},
+	})
+	if err != nil {
+		return err
+	}
+
+	us.logger.Infof("table %s created successfully", us.tableName)
+
+	return nil
 }
 
 func (us *UserService) Delete(ctx context.Context, id string) (entity.User, error) {

@@ -35,6 +35,26 @@ func (m *MockDynamoDBAPI) EXPECT() *MockDynamoDBAPIMockRecorder {
 	return m.recorder
 }
 
+// CreateTable mocks base method.
+func (m *MockDynamoDBAPI) CreateTable(arg0 context.Context, arg1 *dynamodb.CreateTableInput, arg2 ...func(*dynamodb.Options)) (*dynamodb.CreateTableOutput, error) {
+	m.ctrl.T.Helper()
+	varargs := []interface{}{arg0, arg1}
+	for _, a := range arg2 {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "CreateTable", varargs...)
+	ret0, _ := ret[0].(*dynamodb.CreateTableOutput)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// CreateTable indicates an expected call of CreateTable.
+func (mr *MockDynamoDBAPIMockRecorder) CreateTable(arg0, arg1 interface{}, arg2 ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]interface{}{arg0, arg1}, arg2...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateTable", reflect.TypeOf((*MockDynamoDBAPI)(nil).CreateTable), varargs...)
+}
+
 // DeleteItem mocks base method.
 func (m *MockDynamoDBAPI) DeleteItem(arg0 context.Context, arg1 *dynamodb.DeleteItemInput, arg2 ...func(*dynamodb.Options)) (*dynamodb.DeleteItemOutput, error) {
 	m.ctrl.T.Helper()
