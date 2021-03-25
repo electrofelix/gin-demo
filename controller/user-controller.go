@@ -4,12 +4,14 @@ package controller
 
 import (
 	"context"
+	"errors"
 
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/crypto/bcrypt"
 
 	"github.com/electrofelix/gin-demo/entity"
+	"github.com/electrofelix/gin-demo/service"
 )
 
 type UserService interface {
@@ -51,6 +53,7 @@ func (uc *UserController) RegisterRoutes(router *gin.Engine) {
 
 	router.GET("/users", uc.list)
 	router.POST("/users", uc.create)
+	router.DELETE("/users/:email", uc.delete)
 }
 
 func (uc *UserController) create(ctx *gin.Context) {
@@ -81,6 +84,25 @@ func (uc *UserController) create(ctx *gin.Context) {
 	user.Password = ""
 
 	ctx.JSON(201, user)
+}
+
+func (uc *UserController) delete(ctx *gin.Context) {
+	email := ctx.Param("email")
+
+	user, err := uc.service.Delete(ctx, email)
+	if err != nil {
+		if errors.Is(err, service.ErrNotFound) {
+			ctx.AbortWithStatusJSON(404, err)
+
+			return
+		}
+
+		ctx.AbortWithStatusJSON(500, gin.H{"error": "Internal Error"})
+
+		return
+	}
+
+	ctx.JSON(204, user)
 }
 
 func (uc *UserController) list(ctx *gin.Context) {

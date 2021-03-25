@@ -22,6 +22,7 @@ const (
 
 var (
 	ErrBlankEmail = errors.New("email cannot be blank")
+	ErrNotFound = errors.New("user does not exist")
 )
 
 type DynamoDBOptions = func(*dynamodb.Options)
@@ -196,6 +197,10 @@ func (us *UserService) Get(ctx context.Context, email string) (entity.User, erro
 	err = attributevalue.UnmarshalMap(result.Item, &user)
 	if err != nil {
 		return user, fmt.Errorf("failed to unmarshal Items, %w", err)
+	}
+
+	if user == (entity.User{}) {
+		return user, ErrNotFound
 	}
 
 	return user, nil
