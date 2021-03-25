@@ -54,6 +54,7 @@ func (uc *UserController) RegisterRoutes(router *gin.Engine) {
 	router.GET("/users", uc.list)
 	router.POST("/users", uc.create)
 	router.DELETE("/users/:email", uc.delete)
+	router.PUT("/users/:email", uc.update)
 }
 
 func (uc *UserController) create(ctx *gin.Context) {
@@ -120,4 +121,54 @@ func (uc *UserController) list(ctx *gin.Context) {
 	}
 
 	ctx.JSON(200, users)
+}
+
+func (uc *UserController) update(ctx *gin.Context) {
+	email := ctx.Param("email")
+
+	var user entity.User
+	ctx.BindJSON(&user)
+
+	_, err := uc.service.Get(ctx, email)
+	if err != nil {
+		if errors.Is(err, service.ErrNotFound) {
+			ctx.AbortWithStatusJSON(404, err)
+
+			return
+		}
+
+		ctx.AbortWithStatusJSON(500, gin.H{"error": "Internal Error"})
+
+		return
+	}
+
+	if user.Email != "" && user.Email != email {
+		uc.logger.Errorf("attempted to modify email of %s to %s\n", email, user.Email)
+		ctx.AbortWithStatusJSON(405, gin.H{"error": "not allowed alter email"})
+
+		return
+	}
+
+	password, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.MinCost)
+	if err != nil {
+		uc.logger.Errorf("failed to encrypted password text for new user: %s\n", user.Email)
+		ctx.AbortWithStatusJSON(400, gin.H{"error": "unable to encrypt password"})
+
+		return
+	}
+
+	// only store the encrypted password
+	user.Password = string(password)
+	user.LastLogin = 0
+
+	user, err = uc.service.Put(ctx, user)
+	if err != nil {
+		ctx.AbortWithStatusJSON(500, gin.H{"error": "Internal Error"})
+
+		return
+	}
+
+	user.Password = ""
+
+	ctx.JSON(200, user)
 }
