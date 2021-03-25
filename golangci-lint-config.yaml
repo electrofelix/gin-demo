@@ -1,0 +1,11 @@
+run:
+  deadline: 240s
+  tests: true
+  skip-dirs:
+    - vendor
+
+linters-settings:
+  dupl:
+    threshold: 110
+  lll:
+    line-length: 128
