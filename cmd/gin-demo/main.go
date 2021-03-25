@@ -3,14 +3,18 @@ package main
 import (
 	"context"
 	"fmt"
+	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	log "github.com/sirupsen/logrus"
-
 	"github.com/spf13/cobra"
 
+	"github.com/electrofelix/gin-demo/controller"
+	"github.com/electrofelix/gin-demo/server"
 	"github.com/electrofelix/gin-demo/service"
 )
 
@@ -91,11 +95,18 @@ func run(ccmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	users, err := svc.List(ccmd.Context())
-	if err != nil {
-		return err
-	}
-	fmt.Println("users:", users)
+	ctrl := controller.New(svc)
+	s := server.New(ctrl)
 
-	return nil
+	// register to allow some signals to provide a context that will indicate shutdown
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+
+	ctx, cancelFunc := context.WithCancel(ccmd.Context())
+	go func ()  {
+		<-quit
+		cancelFunc()
+	}()
+
+	return s.Start(ctx)
 }
