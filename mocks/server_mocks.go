@@ -34,14 +34,14 @@ func (m *MockController) EXPECT() *MockControllerMockRecorder {
 	return m.recorder
 }
 
-// List mocks base method.
-func (m *MockController) List(arg0 *gin.Context) {
+// RegisterRoutes mocks base method.
+func (m *MockController) RegisterRoutes(arg0 *gin.Engine) {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "List", arg0)
+	m.ctrl.Call(m, "RegisterRoutes", arg0)
 }
 
-// List indicates an expected call of List.
-func (mr *MockControllerMockRecorder) List(arg0 interface{}) *gomock.Call {
+// RegisterRoutes indicates an expected call of RegisterRoutes.
+func (mr *MockControllerMockRecorder) RegisterRoutes(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "List", reflect.TypeOf((*MockController)(nil).List), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RegisterRoutes", reflect.TypeOf((*MockController)(nil).RegisterRoutes), arg0)
 }

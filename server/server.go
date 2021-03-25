@@ -13,27 +13,32 @@ import (
 )
 
 type Controller interface {
-	List(*gin.Context)
+	RegisterRoutes(*gin.Engine)
 }
 
 type Server struct {
-	controller Controller
-	address    string
-	logger     *logrus.Logger
+	address string
+	logger  *logrus.Logger
+	router  *gin.Engine
 }
 
 type Option func(*Server)
 
 func New(ctrl Controller, options ...Option) *Server {
 	s := Server{
-		controller: ctrl,
-		address:    ":8080",
-		logger:     logrus.StandardLogger(),
+		address: ":8080",
+		logger:  logrus.StandardLogger(),
 	}
 
 	for _, opt := range options {
 		opt(&s)
 	}
+
+	// set up the router now and have the controller register paths as any
+	// customization of the logging for the gin Engine config can have been
+	// provided at this point.
+	s.router = gin.Default()
+	ctrl.RegisterRoutes(s.router)
 
 	return &s
 }
@@ -51,11 +56,9 @@ func WithAddress(addr string) Option {
 }
 
 func (s *Server) Start(ctx context.Context) error {
-	router := gin.Default()
-
 	srv := &http.Server{
 		Addr:    s.address,
-		Handler: router,
+		Handler: s.router,
 	}
 
 	go func() {

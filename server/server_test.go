@@ -23,6 +23,8 @@ func TestServer_Start(t *testing.T) {
 		hook := test.NewLocal(logger)
 		controller := mocks.NewMockController(ctrl)
 
+		controller.EXPECT().RegisterRoutes(gomock.Any())
+
 		// looking to capture logs, and start on any free port
 		s := server.New(controller, server.WithLogger(logger), server.WithAddress(":0"))
 
