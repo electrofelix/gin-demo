@@ -127,7 +127,7 @@ func (us *UserService) Create(ctx context.Context, user entity.User) (entity.Use
 	putItem := dynamodb.PutItemInput{
 		Item:                item,
 		TableName:           aws.String(us.tableName),
-		ConditionExpression: aws.String(fmt.Sprintf("Email <> %s", user.Email)),
+		ConditionExpression: aws.String("attribute_not_exists(Email)"),
 	}
 
 	_, err = us.dynamodbClient.PutItem(ctx, &putItem)

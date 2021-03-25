@@ -1,6 +1,9 @@
 package controller_test
 
 import (
+	"bytes"
+	"context"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -87,5 +90,47 @@ func TestUserController_list(t *testing.T) {
 
 		assert.Equal(t, 500, recorder.Code)
 		assert.Equal(t, "{\"error\":\"Internal Error\"}", recorder.Body.String())
+	})
+}
+
+func TestUserController_create(t *testing.T) {
+	t.Run("success", func(t *testing.T) {
+		c, mockService, _ := setupMocks(t)
+		engine, recorder := setupEngine(t, c)
+
+		newUser := entity.User{
+			Name:     "test user",
+			Email:    "test@example.com",
+			Password: "simple-password",
+		}
+
+		jsonBody, err := json.Marshal(newUser)
+		require.NoError(t, err)
+
+		var modifiedUser entity.User
+
+		mockService.EXPECT().Create(gomock.Any(), gomock.Any()).DoAndReturn(
+			func(ctx context.Context, user entity.User) (entity.User, error) {
+				assert.NotEqual(t, newUser.Password, user.Password)
+
+				// save for comparison
+				modifiedUser = user
+
+				return user, nil
+			},
+		)
+
+		req, err := http.NewRequest("POST", "/users", bytes.NewBuffer(jsonBody))
+		require.NoError(t, err)
+
+		engine.ServeHTTP(recorder, req)
+
+		modifiedUser.Password = ""
+
+		jsonUser, err := json.Marshal(modifiedUser)
+		require.NoError(t, err)
+
+		assert.Equal(t, 201, recorder.Code)
+		assert.Equal(t, string(jsonUser), recorder.Body.String())
 	})
 }

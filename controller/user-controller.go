@@ -7,11 +7,13 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
+	"golang.org/x/crypto/bcrypt"
 
 	"github.com/electrofelix/gin-demo/entity"
 )
 
 type UserService interface {
+	Create(ctx context.Context, user entity.User) (entity.User, error)
 	Delete(ctx context.Context, id string) (entity.User, error)
 	Get(ctx context.Context, id string) (entity.User, error)
 	List(ctx context.Context) ([]entity.User, error)
@@ -48,6 +50,37 @@ func (uc *UserController) RegisterRoutes(router *gin.Engine) {
 	uc.logger.Info("UserController registering routes")
 
 	router.GET("/users", uc.list)
+	router.POST("/users", uc.create)
+}
+
+func (uc *UserController) create(ctx *gin.Context) {
+	// should consider separate objects for internal vs external representations
+	var user entity.User
+	ctx.BindJSON(&user)
+
+	password, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.MinCost)
+	if err != nil {
+		uc.logger.Errorf("failed to encrypted password text for new user: %s\n", user.Email)
+		ctx.AbortWithStatusJSON(400, gin.H{"error": "unable to encrypt password"})
+
+		return
+	}
+
+	// only store the encrypted password
+	user.Password = string(password)
+	user.LastLogin = 0
+
+	user, err = uc.service.Create(ctx, user)
+	if err != nil {
+		// missing a check for already exists here
+		ctx.AbortWithStatusJSON(500, gin.H{"error": "Internal Error"})
+
+		return
+	}
+
+	user.Password = ""
+
+	ctx.JSON(201, user)
 }
 
 func (uc *UserController) list(ctx *gin.Context) {
