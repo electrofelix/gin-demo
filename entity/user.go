@@ -8,3 +8,8 @@ type User struct {
 	Password  string        `json:"password,omitempty" binding:"required"`
 	LastLogin time.Duration `json:"last_login"`
 }
+
+type UserLogin struct {
+	Email    string `json:"email" binding:"required"`
+	Password string `json:"password" binding:"required"`
+}

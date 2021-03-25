@@ -55,6 +55,7 @@ func (uc *UserController) RegisterRoutes(router *gin.Engine) {
 	router.POST("/users", uc.create)
 	router.DELETE("/users/:email", uc.delete)
 	router.PUT("/users/:email", uc.update)
+	router.POST("/login", uc.login)
 }
 
 func (uc *UserController) create(ctx *gin.Context) {
@@ -121,6 +122,40 @@ func (uc *UserController) list(ctx *gin.Context) {
 	}
 
 	ctx.JSON(200, users)
+}
+
+func (uc *UserController) login(ctx *gin.Context) {
+	var credentials entity.UserLogin
+	err := ctx.BindJSON(&credentials)
+	if err != nil {
+		ctx.AbortWithStatusJSON(400, gin.H{"error": err.Error()})
+
+		return
+	}
+
+	user, err := uc.service.Get(ctx, credentials.Email)
+	if err != nil {
+		if errors.Is(err, service.ErrNotFound) {
+			ctx.AbortWithStatusJSON(404, err)
+
+			return
+		}
+
+		ctx.AbortWithStatusJSON(500, gin.H{"error": "Internal Error"})
+
+		return
+	}
+
+	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(credentials.Password))
+	if err != nil {
+		ctx.AbortWithStatusJSON(401, gin.H{"error": "Incorrect Password"})
+
+		return
+	}
+
+	// need to update last login and save
+
+	ctx.JSON(200, gin.H{"status": "SUCCESS"})
 }
 
 func (uc *UserController) update(ctx *gin.Context) {
