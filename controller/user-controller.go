@@ -136,7 +136,7 @@ func (uc *UserController) login(ctx *gin.Context) {
 	user, err := uc.service.Get(ctx, credentials.Email)
 	if err != nil {
 		if errors.Is(err, service.ErrNotFound) {
-			ctx.AbortWithStatusJSON(404, err)
+			ctx.AbortWithStatusJSON(401, gin.H{"error": "Invalid Email or Password"})
 
 			return
 		}
@@ -146,9 +146,10 @@ func (uc *UserController) login(ctx *gin.Context) {
 		return
 	}
 
+	// should move this to a receiver function on the User struct
 	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(credentials.Password))
 	if err != nil {
-		ctx.AbortWithStatusJSON(401, gin.H{"error": "Incorrect Password"})
+		ctx.AbortWithStatusJSON(401, gin.H{"error": "Invalid Email or Password"})
 
 		return
 	}
