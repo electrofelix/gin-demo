@@ -170,10 +170,10 @@ func (uc *UserController) login(ctx *gin.Context) {
 func (uc *UserController) update(ctx *gin.Context) {
 	email := ctx.Param("email")
 
-	var user entity.User
-	ctx.BindJSON(&user)
+	var userUpdate entity.User
+	ctx.BindJSON(&userUpdate)
 
-	_, err := uc.service.Get(ctx, email)
+	user, err := uc.service.Get(ctx, email)
 	if err != nil {
 		if errors.Is(err, service.ErrNotFound) {
 			ctx.AbortWithStatusJSON(404, err)
@@ -186,16 +186,16 @@ func (uc *UserController) update(ctx *gin.Context) {
 		return
 	}
 
-	if user.Email != "" && user.Email != email {
-		uc.logger.Errorf("attempted to modify email of %s to %s\n", email, user.Email)
+	if userUpdate.Email != "" && userUpdate.Email != email {
+		uc.logger.Errorf("attempted to modify email of %s to %s\n", email, userUpdate.Email)
 		ctx.AbortWithStatusJSON(405, gin.H{"error": "not allowed alter email"})
 
 		return
 	}
 
-	password, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.MinCost)
+	password, err := bcrypt.GenerateFromPassword([]byte(userUpdate.Password), bcrypt.MinCost)
 	if err != nil {
-		uc.logger.Errorf("failed to encrypted password text for new user: %s\n", user.Email)
+		uc.logger.Errorf("failed to encrypted password text for new user: %s\n", userUpdate.Email)
 		ctx.AbortWithStatusJSON(400, gin.H{"error": "unable to encrypt password"})
 
 		return
@@ -204,7 +204,14 @@ func (uc *UserController) update(ctx *gin.Context) {
 	// only store the encrypted password
 	user.Password = string(password)
 
-	user, err = uc.service.Put(ctx, user)
+	// should really have separate structs for requests with pointers for field values to ensure
+	// possible to determine when a specific field should be ignored as opposed to explicit request
+	// to unset
+	if userUpdate.Name != "" {
+		user.Name = userUpdate.Name
+	}
+
+	user, err = uc.service.Put(ctx, userUpdate)
 	if err != nil {
 		ctx.AbortWithStatusJSON(500, gin.H{"error": "Internal Error"})
 
