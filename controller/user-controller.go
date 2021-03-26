@@ -5,6 +5,7 @@ package controller
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
@@ -73,7 +74,6 @@ func (uc *UserController) create(ctx *gin.Context) {
 
 	// only store the encrypted password
 	user.Password = string(password)
-	user.LastLogin = 0
 
 	user, err = uc.service.Create(ctx, user)
 	if err != nil {
@@ -154,6 +154,14 @@ func (uc *UserController) login(ctx *gin.Context) {
 	}
 
 	// need to update last login and save
+	user.LastLogin = time.Now()
+
+	user, err = uc.service.Put(ctx, user)
+	if err != nil {
+		ctx.AbortWithStatusJSON(500, gin.H{"error": "Internal Error"})
+
+		return
+	}
 
 	ctx.JSON(200, gin.H{"status": "SUCCESS"})
 }
@@ -194,7 +202,6 @@ func (uc *UserController) update(ctx *gin.Context) {
 
 	// only store the encrypted password
 	user.Password = string(password)
-	user.LastLogin = 0
 
 	user, err = uc.service.Put(ctx, user)
 	if err != nil {
