@@ -53,6 +53,7 @@ func (uc *UserController) RegisterRoutes(router *gin.Engine) {
 	uc.logger.Info("UserController registering routes")
 
 	router.GET("/users", uc.list)
+	router.GET("/users/:email", uc.get)
 	router.POST("/users", uc.create)
 	router.DELETE("/users/:email", uc.delete)
 	router.PUT("/users/:email", uc.update)
@@ -106,6 +107,30 @@ func (uc *UserController) delete(ctx *gin.Context) {
 
 	ctx.JSON(204, user)
 }
+
+
+func (uc *UserController) get(ctx *gin.Context) {
+	email := ctx.Param("email")
+
+	user, err := uc.service.Get(ctx, email)
+	if err != nil {
+		if errors.Is(err, service.ErrNotFound) {
+			ctx.AbortWithStatusJSON(404, err)
+
+			return
+		}
+
+		ctx.AbortWithStatusJSON(500, gin.H{"error": "Internal Error"})
+
+		return
+	}
+
+	// still using this terrible hack
+	user.Password = ""
+
+	ctx.JSON(200, user)
+}
+
 
 func (uc *UserController) list(ctx *gin.Context) {
 	users, err := uc.service.List(ctx)
