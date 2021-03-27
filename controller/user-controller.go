@@ -5,11 +5,9 @@ package controller
 import (
 	"context"
 	"errors"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
-	"golang.org/x/crypto/bcrypt"
 
 	"github.com/electrofelix/gin-demo/entity"
 )
@@ -19,7 +17,8 @@ type UserService interface {
 	Delete(ctx context.Context, id string) (entity.User, error)
 	Get(ctx context.Context, id string) (entity.User, error)
 	List(ctx context.Context) ([]entity.User, error)
-	Put(ctx context.Context, user entity.User) (entity.User, error)
+	Update(ctx context.Context, id string, user entity.User) (entity.User, error)
+	ValidateCredentials(ctx context.Context, credentials entity.UserLogin) error
 }
 
 type UserController struct {
@@ -45,7 +44,7 @@ func New(service UserService, router gin.IRoutes, opts ...Option) *UserControlle
 	router.GET("/users/:email", controller.get)
 	router.POST("/users", controller.create)
 	router.DELETE("/users/:email", controller.delete)
-	router.PUT("/users/:email", controller.update)
+	router.PATCH("/users/:email", controller.update)
 	router.POST("/login", controller.login)
 
 	return controller
@@ -67,18 +66,7 @@ func (uc *UserController) create(ctx *gin.Context) {
 		return
 	}
 
-	password, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.MinCost)
-	if err != nil {
-		uc.logger.Errorf("failed to encrypted password text for new user: %s\n", user.Email)
-		ctx.AbortWithStatusJSON(400, gin.H{"error": "unable to encrypt password"})
-
-		return
-	}
-
-	// only store the encrypted password
-	user.Password = string(password)
-
-	user, err = uc.service.Create(ctx, user)
+	userResp, err := uc.service.Create(ctx, user)
 	if err != nil {
 		// missing a check for already exists here
 		ctx.AbortWithStatusJSON(500, gin.H{"error": "Internal Error"})
@@ -86,15 +74,13 @@ func (uc *UserController) create(ctx *gin.Context) {
 		return
 	}
 
-	user.Password = ""
-
-	ctx.JSON(201, user)
+	ctx.JSON(201, userResp)
 }
 
 func (uc *UserController) delete(ctx *gin.Context) {
 	email := ctx.Param("email")
 
-	user, err := uc.service.Delete(ctx, email)
+	userResp, err := uc.service.Delete(ctx, email)
 	if err != nil {
 		if errors.Is(err, entity.ErrNotFound) {
 			ctx.AbortWithStatusJSON(404, err)
@@ -107,14 +93,13 @@ func (uc *UserController) delete(ctx *gin.Context) {
 		return
 	}
 
-	ctx.JSON(204, user)
+	ctx.JSON(204, userResp)
 }
-
 
 func (uc *UserController) get(ctx *gin.Context) {
 	email := ctx.Param("email")
 
-	user, err := uc.service.Get(ctx, email)
+	userResp, err := uc.service.Get(ctx, email)
 	if err != nil {
 		if errors.Is(err, entity.ErrNotFound) {
 			ctx.AbortWithStatusJSON(404, err)
@@ -127,28 +112,18 @@ func (uc *UserController) get(ctx *gin.Context) {
 		return
 	}
 
-	// still using this terrible hack
-	user.Password = ""
-
-	ctx.JSON(200, user)
+	ctx.JSON(200, userResp)
 }
 
-
 func (uc *UserController) list(ctx *gin.Context) {
-	users, err := uc.service.List(ctx)
+	usersResp, err := uc.service.List(ctx)
 	if err != nil {
 		ctx.AbortWithStatusJSON(500, gin.H{"error": "Internal Error"})
 
 		return
 	}
 
-	// ideally return different structures or implement the dynamodb marshal/unmarshal
-	// interface and make password private so that it's not returned by default
-	for idx := 0; idx < len(users); idx++ {
-		users[idx].Password = ""
-	}
-
-	ctx.JSON(200, users)
+	ctx.JSON(200, usersResp)
 }
 
 func (uc *UserController) login(ctx *gin.Context) {
@@ -160,7 +135,7 @@ func (uc *UserController) login(ctx *gin.Context) {
 		return
 	}
 
-	user, err := uc.service.Get(ctx, credentials.Email)
+	err = uc.service.ValidateCredentials(ctx, credentials)
 	if err != nil {
 		if errors.Is(err, entity.ErrNotFound) {
 			ctx.AbortWithStatusJSON(401, gin.H{"error": "Invalid Email or Password"})
@@ -168,24 +143,6 @@ func (uc *UserController) login(ctx *gin.Context) {
 			return
 		}
 
-		ctx.AbortWithStatusJSON(500, gin.H{"error": "Internal Error"})
-
-		return
-	}
-
-	// should move this to a receiver function on the User struct
-	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(credentials.Password))
-	if err != nil {
-		ctx.AbortWithStatusJSON(401, gin.H{"error": "Invalid Email or Password"})
-
-		return
-	}
-
-	// need to update last login and save
-	user.LastLogin = time.Now()
-
-	user, err = uc.service.Put(ctx, user)
-	if err != nil {
 		ctx.AbortWithStatusJSON(500, gin.H{"error": "Internal Error"})
 
 		return
@@ -206,7 +163,7 @@ func (uc *UserController) update(ctx *gin.Context) {
 	}
 
 
-	user, err := uc.service.Get(ctx, email)
+	user, err := uc.service.Update(ctx, email, userUpdate)
 	if err != nil {
 		if errors.Is(err, entity.ErrNotFound) {
 			ctx.AbortWithStatusJSON(404, err)
@@ -218,40 +175,6 @@ func (uc *UserController) update(ctx *gin.Context) {
 
 		return
 	}
-
-	if userUpdate.Email != "" && userUpdate.Email != email {
-		uc.logger.Errorf("attempted to modify email of %s to %s\n", email, userUpdate.Email)
-		ctx.AbortWithStatusJSON(405, gin.H{"error": "not allowed alter email"})
-
-		return
-	}
-
-	password, err := bcrypt.GenerateFromPassword([]byte(userUpdate.Password), bcrypt.MinCost)
-	if err != nil {
-		uc.logger.Errorf("failed to encrypted password text for new user: %s\n", userUpdate.Email)
-		ctx.AbortWithStatusJSON(400, gin.H{"error": "unable to encrypt password"})
-
-		return
-	}
-
-	// only store the encrypted password
-	user.Password = string(password)
-
-	// should really have separate structs for requests with pointers for field values to ensure
-	// possible to determine when a specific field should be ignored as opposed to explicit request
-	// to unset
-	if userUpdate.Name != "" {
-		user.Name = userUpdate.Name
-	}
-
-	user, err = uc.service.Put(ctx, userUpdate)
-	if err != nil {
-		ctx.AbortWithStatusJSON(500, gin.H{"error": "Internal Error"})
-
-		return
-	}
-
-	user.Password = ""
 
 	ctx.JSON(200, user)
 }

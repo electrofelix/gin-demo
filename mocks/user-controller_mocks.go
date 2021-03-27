@@ -95,17 +95,31 @@ func (mr *MockUserServiceMockRecorder) List(arg0 interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "List", reflect.TypeOf((*MockUserService)(nil).List), arg0)
 }
 
-// Put mocks base method.
-func (m *MockUserService) Put(arg0 context.Context, arg1 entity.User) (entity.User, error) {
+// Update mocks base method.
+func (m *MockUserService) Update(arg0 context.Context, arg1 string, arg2 entity.User) (entity.User, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Put", arg0, arg1)
+	ret := m.ctrl.Call(m, "Update", arg0, arg1, arg2)
 	ret0, _ := ret[0].(entity.User)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// Put indicates an expected call of Put.
-func (mr *MockUserServiceMockRecorder) Put(arg0, arg1 interface{}) *gomock.Call {
+// Update indicates an expected call of Update.
+func (mr *MockUserServiceMockRecorder) Update(arg0, arg1, arg2 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Put", reflect.TypeOf((*MockUserService)(nil).Put), arg0, arg1)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Update", reflect.TypeOf((*MockUserService)(nil).Update), arg0, arg1, arg2)
+}
+
+// ValidateCredentials mocks base method.
+func (m *MockUserService) ValidateCredentials(arg0 context.Context, arg1 entity.UserLogin) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ValidateCredentials", arg0, arg1)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// ValidateCredentials indicates an expected call of ValidateCredentials.
+func (mr *MockUserServiceMockRecorder) ValidateCredentials(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ValidateCredentials", reflect.TypeOf((*MockUserService)(nil).ValidateCredentials), arg0, arg1)
 }

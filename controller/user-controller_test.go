@@ -97,16 +97,15 @@ func TestUserController_create(t *testing.T) {
 		jsonBody, err := json.Marshal(newUser)
 		require.NoError(t, err)
 
-		var modifiedUser entity.User
+		var returnedUser entity.User
 
 		mockService.EXPECT().Create(gomock.Any(), gomock.Any()).DoAndReturn(
 			func(ctx context.Context, user entity.User) (entity.User, error) {
-				assert.NotEqual(t, newUser.Password, user.Password)
+				returnedUser = newUser
 
-				// save for comparison
-				modifiedUser = user
+				returnedUser.Password = ""
 
-				return user, nil
+				return returnedUser, nil
 			},
 		)
 
@@ -115,9 +114,7 @@ func TestUserController_create(t *testing.T) {
 
 		engine.ServeHTTP(recorder, req)
 
-		modifiedUser.Password = ""
-
-		jsonUser, err := json.Marshal(modifiedUser)
+		jsonUser, err := json.Marshal(returnedUser)
 		require.NoError(t, err)
 
 		assert.Equal(t, 201, recorder.Code)
