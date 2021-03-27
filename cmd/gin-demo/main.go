@@ -16,6 +16,7 @@ import (
 	"github.com/electrofelix/gin-demo/controller"
 	"github.com/electrofelix/gin-demo/server"
 	"github.com/electrofelix/gin-demo/service"
+	"github.com/electrofelix/gin-demo/store"
 )
 
 func NewCmd() *cobra.Command {
@@ -91,16 +92,19 @@ func run(ccmd *cobra.Command, args []string) error {
 	}
 
 	dbClient := dynamodb.NewFromConfig(awsCfg)
-	// table should be provided via a config option
-	svc := service.New(dbClient, "user-table")
 
-	err = svc.InitializeTable(ccmd.Context())
+	// table should be provided via a config option
+	store := store.NewUserStore(dbClient, "user-table")
+	err = store.InitializeTable(ccmd.Context())
 	if err != nil {
 		return err
 	}
 
-	ctrl := controller.New(svc)
-	s := server.New(ctrl)
+	s := server.New(
+		controller.New(
+			service.New(store),
+		),
+	)
 
 	// register to allow some signals to provide a context that will indicate shutdown
 	quit := make(chan os.Signal, 1)

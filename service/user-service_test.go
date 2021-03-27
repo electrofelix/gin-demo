@@ -4,44 +4,30 @@ import (
 	"context"
 	"testing"
 
-	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
-	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
-	"github.com/electrofelix/gin-demo/entity"
-	"github.com/electrofelix/gin-demo/mocks"
-	"github.com/electrofelix/gin-demo/service"
 	"github.com/golang/mock/gomock"
 	"github.com/rs/xid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-)
 
-const (
-	tableName = "test-table"
+	"github.com/electrofelix/gin-demo/entity"
+	"github.com/electrofelix/gin-demo/mocks"
+	"github.com/electrofelix/gin-demo/service"
 )
 
 func TestUserService_Delete(t *testing.T) {
 	ctrl := gomock.NewController(t)
 
 	t.Run("success", func(t *testing.T) {
-		mockDBClient := mocks.NewMockDynamoDBAPI(ctrl)
-		svc := service.New(mockDBClient, tableName)
+		mockStore := mocks.NewMockUserStore(ctrl)
+		svc := service.New(mockStore)
 
 		user := entity.User{
-			Email: "user1@example.com",
+			Email: "user1@test.com",
 			Name:  "test-user",
 		}
 
-		mockDBClient.EXPECT().GetItem(gomock.Any(), gomock.Any()).Return(
-			&dynamodb.GetItemOutput{
-				Item: map[string]types.AttributeValue{
-					"Email": &types.AttributeValueMemberS{Value: user.Email},
-					"Name":  &types.AttributeValueMemberS{Value: user.Name},
-				},
-			},
-			nil,
-		)
-
-		mockDBClient.EXPECT().DeleteItem(gomock.Any(), gomock.Any()).Return(&dynamodb.DeleteItemOutput{}, nil)
+		mockStore.EXPECT().Get(gomock.Any(), gomock.Any()).Return(&user, nil)
+		mockStore.EXPECT().Delete(gomock.Any(), gomock.Any()).Return(nil)
 
 		got, err := svc.Delete(context.Background(), user.Email)
 		require.NoError(t, err)
@@ -50,8 +36,15 @@ func TestUserService_Delete(t *testing.T) {
 	})
 
 	t.Run("not-found", func(t *testing.T) {
-		mockDBClient := mocks.NewMockDynamoDBAPI(ctrl)
-		_ = service.New(mockDBClient, tableName)
+		mockStore := mocks.NewMockUserStore(ctrl)
+		svc := service.New(mockStore)
+
+		mockStore.EXPECT().Get(gomock.Any(), gomock.Any()).Return(nil, entity.ErrNotFound)
+
+		got, err := svc.Delete(context.Background(), "any-email@test.com")
+		if assert.ErrorIs(t, err, entity.ErrNotFound) {
+			assert.Equal(t, entity.User{}, got)
+		}
 	})
 }
 
@@ -59,24 +52,15 @@ func TestUserService_Get(t *testing.T) {
 	ctrl := gomock.NewController(t)
 
 	t.Run("success", func(t *testing.T) {
-		mockDBClient := mocks.NewMockDynamoDBAPI(ctrl)
-		svc := service.New(mockDBClient, tableName)
+		mockStore := mocks.NewMockUserStore(ctrl)
+		svc := service.New(mockStore)
 
 		user := entity.User{
 			Email: "user1@example.com",
 			Name:  "test-user",
 		}
 
-		mockDBClient.EXPECT().GetItem(gomock.Any(), gomock.Any()).Return(
-			&dynamodb.GetItemOutput{
-				Item: map[string]types.AttributeValue{
-					"Email":      &types.AttributeValueMemberS{Value: user.Email},
-					"Name":       &types.AttributeValueMemberS{Value: user.Name},
-					"objectType": &types.AttributeValueMemberS{Value: "User"},
-				},
-			},
-			nil,
-		)
+		mockStore.EXPECT().Get(gomock.Any(), gomock.Any()).Return(&user, nil)
 
 		got, err := svc.Get(context.Background(), user.Email)
 		require.NoError(t, err)
@@ -85,25 +69,23 @@ func TestUserService_Get(t *testing.T) {
 	})
 
 	t.Run("bad-id", func(t *testing.T) {
-		mockDBClient := mocks.NewMockDynamoDBAPI(ctrl)
-		svc := service.New(mockDBClient, tableName)
+		mockStore := mocks.NewMockUserStore(ctrl)
+		svc := service.New(mockStore)
 
 		_, err := svc.Get(context.Background(), "")
-		assert.Error(t, err)
+		assert.ErrorIs(t, err, entity.ErrIDMissing)
 	})
 
 	t.Run("not-found", func(t *testing.T) {
-		mockDBClient := mocks.NewMockDynamoDBAPI(ctrl)
-		svc := service.New(mockDBClient, tableName)
+		mockStore := mocks.NewMockUserStore(ctrl)
+		svc := service.New(mockStore)
 
-		mockDBClient.EXPECT().GetItem(gomock.Any(), gomock.Any()).Return(
-			&dynamodb.GetItemOutput{}, nil,
-		)
+		mockStore.EXPECT().Get(gomock.Any(), gomock.Any()).Return(nil, entity.ErrNotFound)
 
 		user, err := svc.Get(context.Background(), xid.New().String())
 		require.Error(t, err)
 
-		assert.Equal(t, entity.ErrNotFound, err)
+		assert.ErrorIs(t, err, entity.ErrNotFound)
 		assert.Equal(t, entity.User{}, user)
 	})
 }
@@ -112,38 +94,21 @@ func TestUserService_List(t *testing.T) {
 	ctrl := gomock.NewController(t)
 
 	t.Run("success", func(t *testing.T) {
-		mockDBClient := mocks.NewMockDynamoDBAPI(ctrl)
-		svc := service.New(mockDBClient, tableName)
+		mockStore := mocks.NewMockUserStore(ctrl)
+		svc := service.New(mockStore)
 
 		users := []entity.User{
 			{
-				Email: "user1@example.com",
+				Email: "user1@test.com",
 				Name:  "test-user1",
 			},
 			{
-				Email: "user2@example.com",
+				Email: "user2@test.com",
 				Name:  "test-user2",
 			},
 		}
 
-		mockDBClient.EXPECT().Scan(gomock.Any(), gomock.Any()).Return(
-			&dynamodb.ScanOutput{
-				Items: []map[string]types.AttributeValue{
-					{
-						"Email":      &types.AttributeValueMemberS{Value: users[0].Email},
-						"Name":       &types.AttributeValueMemberS{Value: users[0].Name},
-						"objectType": &types.AttributeValueMemberS{Value: "User"},
-					},
-					{
-						"Email":      &types.AttributeValueMemberS{Value: users[1].Email},
-						"Name":       &types.AttributeValueMemberS{Value: users[1].Name},
-						"objectType": &types.AttributeValueMemberS{Value: "User"},
-					},
-				},
-				Count: int32(len(users)),
-			},
-			nil,
-		)
+		mockStore.EXPECT().List(gomock.Any()).Return(users, nil)
 
 		got, err := svc.List(context.Background())
 		require.NoError(t, err)
@@ -156,25 +121,28 @@ func TestUserService_Put(t *testing.T) {
 	ctrl := gomock.NewController(t)
 
 	t.Run("success", func(t *testing.T) {
-		mockDBClient := mocks.NewMockDynamoDBAPI(ctrl)
-		svc := service.New(mockDBClient, tableName)
+		mockStore := mocks.NewMockUserStore(ctrl)
+		svc := service.New(mockStore)
 
 		user := entity.User{
-			Email: "user1@exmaple.com",
+			Email: "user1@test.com",
 			Name:  "test-user1",
 		}
 
-		mockDBClient.EXPECT().PutItem(gomock.Any(), gomock.Any()).Do(
-			func(ctx context.Context, input *dynamodb.PutItemInput) {
-				email := input.Item["Email"].(*types.AttributeValueMemberS)
-
-				assert.Equal(t, user.Email, email.Value)
-			},
-		).Return(nil, nil)
+		mockStore.EXPECT().Put(gomock.Any(), gomock.Any()).Return(nil)
 
 		got, err := svc.Put(context.Background(), user)
 		require.NoError(t, err)
 
 		assert.Equal(t, user, got)
+	})
+
+	t.Run("bad-id", func(t *testing.T) {
+		mockStore := mocks.NewMockUserStore(ctrl)
+		svc := service.New(mockStore)
+
+		_, err := svc.Put(context.Background(), entity.User{})
+		
+		assert.ErrorIs(t, err, entity.ErrIDMissing)
 	})
 }
