@@ -12,7 +12,6 @@ import (
 	"golang.org/x/crypto/bcrypt"
 
 	"github.com/electrofelix/gin-demo/entity"
-	"github.com/electrofelix/gin-demo/service"
 )
 
 type UserService interface {
@@ -99,7 +98,7 @@ func (uc *UserController) delete(ctx *gin.Context) {
 
 	user, err := uc.service.Delete(ctx, email)
 	if err != nil {
-		if errors.Is(err, service.ErrNotFound) {
+		if errors.Is(err, entity.ErrNotFound) {
 			ctx.AbortWithStatusJSON(404, err)
 
 			return
@@ -119,7 +118,7 @@ func (uc *UserController) get(ctx *gin.Context) {
 
 	user, err := uc.service.Get(ctx, email)
 	if err != nil {
-		if errors.Is(err, service.ErrNotFound) {
+		if errors.Is(err, entity.ErrNotFound) {
 			ctx.AbortWithStatusJSON(404, err)
 
 			return
@@ -165,7 +164,7 @@ func (uc *UserController) login(ctx *gin.Context) {
 
 	user, err := uc.service.Get(ctx, credentials.Email)
 	if err != nil {
-		if errors.Is(err, service.ErrNotFound) {
+		if errors.Is(err, entity.ErrNotFound) {
 			ctx.AbortWithStatusJSON(401, gin.H{"error": "Invalid Email or Password"})
 
 			return
@@ -211,7 +210,7 @@ func (uc *UserController) update(ctx *gin.Context) {
 
 	user, err := uc.service.Get(ctx, email)
 	if err != nil {
-		if errors.Is(err, service.ErrNotFound) {
+		if errors.Is(err, entity.ErrNotFound) {
 			ctx.AbortWithStatusJSON(404, err)
 
 			return

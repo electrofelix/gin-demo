@@ -103,7 +103,7 @@ func TestUserService_Get(t *testing.T) {
 		user, err := svc.Get(context.Background(), xid.New().String())
 		require.Error(t, err)
 
-		assert.Equal(t, service.ErrNotFound, err)
+		assert.Equal(t, entity.ErrNotFound, err)
 		assert.Equal(t, entity.User{}, user)
 	})
 }

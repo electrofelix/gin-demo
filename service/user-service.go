@@ -4,7 +4,6 @@ package service
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -18,11 +17,6 @@ import (
 
 const (
 	key = "UserInfo"
-)
-
-var (
-	ErrBlankEmail = errors.New("email cannot be blank")
-	ErrNotFound = errors.New("user does not exist")
 )
 
 type DynamoDBOptions = func(*dynamodb.Options)
@@ -172,7 +166,7 @@ func (us *UserService) Delete(ctx context.Context, email string) (entity.User, e
 
 func (us *UserService) Get(ctx context.Context, email string) (entity.User, error) {
 	if email == "" {
-		return entity.User{}, ErrBlankEmail
+		return entity.User{}, entity.ErrIDMissing
 	}
 
 	getItem := dynamodb.GetItemInput{
@@ -200,7 +194,7 @@ func (us *UserService) Get(ctx context.Context, email string) (entity.User, erro
 	}
 
 	if user == (entity.User{}) {
-		return user, ErrNotFound
+		return user, entity.ErrNotFound
 	}
 
 	return user, nil
@@ -235,7 +229,7 @@ func (us *UserService) List(ctx context.Context) ([]entity.User, error) {
 
 func (us *UserService) Put(ctx context.Context, user entity.User) (entity.User, error) {
 	if user.Email == "" {
-		return entity.User{}, ErrBlankEmail
+		return entity.User{}, entity.ErrIDMissing
 	}
 
 	item, err := attributevalue.MarshalMap(user)
