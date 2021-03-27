@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang/mock/gomock"
@@ -52,7 +53,7 @@ func TestNew(t *testing.T) {
 }
 
 func TestUserController_list(t *testing.T) {
-	t.Run("success", func(t *testing.T) {
+	t.Run("empty", func(t *testing.T) {
 		_, engine, mockService, _ := setupMocks(t)
 		recorder := httptest.NewRecorder()
 
@@ -65,6 +66,38 @@ func TestUserController_list(t *testing.T) {
 
 		assert.Equal(t, 200, recorder.Code)
 		assert.Equal(t, "[]", recorder.Body.String())
+	})
+
+	t.Run("multiple-users", func(t *testing.T) {
+		_, engine, mockService, _ := setupMocks(t)
+		recorder := httptest.NewRecorder()
+
+		users := []entity.User{
+			{
+				Email:     "user1@test.com",
+				Name:      "Test user 1",
+				LastLogin: time.Now(),
+			},
+			{
+				Email:     "user2@test.com",
+				Name:      "Test user 2",
+				LastLogin: time.Now(),
+			},
+		}
+
+		jsonBody, err := json.Marshal(users)
+		require.NoError(t, err)
+
+		mockService.EXPECT().List(gomock.Any()).Return(users, nil)
+
+		req, err := http.NewRequest("GET", "/users", nil)
+		require.NoError(t, err)
+
+		engine.ServeHTTP(recorder, req)
+
+		assert.Equal(t, 200, recorder.Code)
+
+		assert.Equal(t, jsonBody, recorder.Body.Bytes())
 	})
 
 	t.Run("error", func(t *testing.T) {
@@ -83,19 +116,26 @@ func TestUserController_list(t *testing.T) {
 	})
 }
 
+// setup a user entity and equvalent json for the request
+func setupTestUser(t *testing.T) (entity.User, *bytes.Buffer) {
+	newUser := entity.User{
+		Name:     "test user",
+		Email:    "test@example.com",
+		Password: "simple-password",
+	}
+
+	jsonBody, err := json.Marshal(newUser)
+	require.NoError(t, err)
+
+	return newUser, bytes.NewBuffer(jsonBody)
+}
+
 func TestUserController_create(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		_, engine, mockService, _ := setupMocks(t)
 		recorder := httptest.NewRecorder()
 
-		newUser := entity.User{
-			Name:     "test user",
-			Email:    "test@example.com",
-			Password: "simple-password",
-		}
-
-		jsonBody, err := json.Marshal(newUser)
-		require.NoError(t, err)
+		newUser, jsonBody := setupTestUser(t)
 
 		var returnedUser entity.User
 
@@ -109,7 +149,7 @@ func TestUserController_create(t *testing.T) {
 			},
 		)
 
-		req, err := http.NewRequest("POST", "/users", bytes.NewBuffer(jsonBody))
+		req, err := http.NewRequest("POST", "/users", jsonBody)
 		require.NoError(t, err)
 
 		engine.ServeHTTP(recorder, req)
@@ -119,5 +159,23 @@ func TestUserController_create(t *testing.T) {
 
 		assert.Equal(t, 201, recorder.Code)
 		assert.Equal(t, string(jsonUser), recorder.Body.String())
+	})
+
+	t.Run("duplicate", func(t *testing.T) {
+		_, engine, mockService, _ := setupMocks(t)
+		recorder := httptest.NewRecorder()
+
+		mockService.EXPECT().Create(gomock.Any(), gomock.Any()).Return(
+			entity.User{}, entity.ErrIDCollision,
+		)
+
+		_, jsonBody := setupTestUser(t)
+		req, err := http.NewRequest("POST", "/users", jsonBody)
+		require.NoError(t, err)
+
+		engine.ServeHTTP(recorder, req)
+
+		assert.Equal(t, 409, recorder.Code)
+		assert.Equal(t, "{\"error\":\"user already exists\"}", recorder.Body.String())
 	})
 }

@@ -68,7 +68,13 @@ func (uc *UserController) create(ctx *gin.Context) {
 
 	userResp, err := uc.service.Create(ctx, user)
 	if err != nil {
-		// missing a check for already exists here
+		if errors.Is(err, entity.ErrIDCollision) {
+			// could potentially return 201 here as well
+			ctx.AbortWithStatusJSON(409, gin.H{"error": err.Error()})
+
+			return
+		}
+
 		ctx.AbortWithStatusJSON(500, gin.H{"error": "Internal Error"})
 
 		return
