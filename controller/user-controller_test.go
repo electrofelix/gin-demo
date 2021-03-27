@@ -21,16 +21,17 @@ import (
 	"github.com/electrofelix/gin-demo/mocks"
 )
 
-func setupMocks(t *testing.T) (*controller.UserController, *mocks.MockUserService, *test.Hook) {
+func setupMocks(t *testing.T) (*controller.UserController, *gin.Engine, *mocks.MockUserService, *test.Hook) {
 	t.Helper()
 	ctrl := gomock.NewController(t)
 
 	testLogger := logrus.New()
 	logHook := test.NewLocal(testLogger)
 	mockService := mocks.NewMockUserService(ctrl)
-	c := controller.New(mockService, controller.WithLogger(testLogger))
+	engine := gin.Default()
+	c := controller.New(mockService, engine, controller.WithLogger(testLogger))
 
-	return c, mockService, logHook
+	return c, engine, mockService, logHook
 }
 
 func TestNew(t *testing.T) {
@@ -38,33 +39,22 @@ func TestNew(t *testing.T) {
 		ctrl := gomock.NewController(t)
 
 		mockService := mocks.NewMockUserService(ctrl)
-		c := controller.New(mockService)
+		c := controller.New(mockService, gin.Default())
 
 		assert.IsType(t, &controller.UserController{}, c)
 	})
 
 	t.Run("with-logger", func(t *testing.T) {
-		c, _, _ := setupMocks(t)
+		c, _, _, _ := setupMocks(t)
 
 		assert.IsType(t, &controller.UserController{}, c)
 	})
 }
 
-func setupEngine(t *testing.T, c *controller.UserController) (*gin.Engine, *httptest.ResponseRecorder) {
-	t.Helper()
-
-	engine := gin.Default()
-	c.RegisterRoutes(engine)
-
-	recorder := httptest.NewRecorder()
-
-	return engine, recorder
-}
-
 func TestUserController_list(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
-		c, mockService, _ := setupMocks(t)
-		engine, recorder := setupEngine(t, c)
+		_, engine, mockService, _ := setupMocks(t)
+		recorder := httptest.NewRecorder()
 
 		mockService.EXPECT().List(gomock.Any()).Return([]entity.User{}, nil)
 
@@ -78,8 +68,8 @@ func TestUserController_list(t *testing.T) {
 	})
 
 	t.Run("error", func(t *testing.T) {
-		c, mockService, _ := setupMocks(t)
-		engine, recorder := setupEngine(t, c)
+		_, engine, mockService, _ := setupMocks(t)
+		recorder := httptest.NewRecorder()
 
 		mockService.EXPECT().List(gomock.Any()).Return([]entity.User{}, errors.New("failed lookup"))
 
@@ -95,8 +85,8 @@ func TestUserController_list(t *testing.T) {
 
 func TestUserController_create(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
-		c, mockService, _ := setupMocks(t)
-		engine, recorder := setupEngine(t, c)
+		_, engine, mockService, _ := setupMocks(t)
+		recorder := httptest.NewRecorder()
 
 		newUser := entity.User{
 			Name:     "test user",

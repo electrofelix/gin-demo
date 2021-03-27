@@ -24,7 +24,7 @@ type Server struct {
 
 type Option func(*Server)
 
-func New(ctrl Controller, options ...Option) *Server {
+func New(options ...Option) *Server {
 	s := Server{
 		address: ":8080",
 		logger:  logrus.StandardLogger(),
@@ -38,7 +38,6 @@ func New(ctrl Controller, options ...Option) *Server {
 	// customization of the logging for the gin Engine config can have been
 	// provided at this point.
 	s.router = gin.Default()
-	ctrl.RegisterRoutes(s.router)
 
 	return &s
 }
@@ -53,6 +52,10 @@ func WithAddress(addr string) Option {
 	return func(s *Server) {
 		s.address = addr
 	}
+}
+
+func (s *Server) GetRouter() gin.IRouter {
+	return s.router
 }
 
 func (s *Server) Start(ctx context.Context) error {

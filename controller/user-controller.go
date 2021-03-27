@@ -29,7 +29,7 @@ type UserController struct {
 
 type Option func(*UserController)
 
-func New(service UserService, opts ...Option) *UserController {
+func New(service UserService, router gin.IRoutes, opts ...Option) *UserController {
 	controller := &UserController{
 		service: service,
 		logger:  logrus.StandardLogger(),
@@ -39,6 +39,15 @@ func New(service UserService, opts ...Option) *UserController {
 		opt(controller)
 	}
 
+	controller.logger.Info("UserController registering routes")
+
+	router.GET("/users", controller.list)
+	router.GET("/users/:email", controller.get)
+	router.POST("/users", controller.create)
+	router.DELETE("/users/:email", controller.delete)
+	router.PUT("/users/:email", controller.update)
+	router.POST("/login", controller.login)
+
 	return controller
 }
 
@@ -46,17 +55,6 @@ func WithLogger(l *logrus.Logger) Option {
 	return func(uc *UserController) {
 		uc.logger = l
 	}
-}
-
-func (uc *UserController) RegisterRoutes(router *gin.Engine) {
-	uc.logger.Info("UserController registering routes")
-
-	router.GET("/users", uc.list)
-	router.GET("/users/:email", uc.get)
-	router.POST("/users", uc.create)
-	router.DELETE("/users/:email", uc.delete)
-	router.PUT("/users/:email", uc.update)
-	router.POST("/login", uc.login)
 }
 
 func (uc *UserController) create(ctx *gin.Context) {

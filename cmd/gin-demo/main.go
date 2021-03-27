@@ -100,11 +100,9 @@ func run(ccmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	s := server.New(
-		controller.New(
-			service.New(store),
-		),
-	)
+	s := server.New()
+	
+	controller.New(service.New(store), s.GetRouter())
 
 	// register to allow some signals to provide a context that will indicate shutdown
 	quit := make(chan os.Signal, 1)
