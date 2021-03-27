@@ -1,0 +1,26 @@
+version: "3.9"
+services:
+
+  gin-app:
+    build:
+      context: .
+    # this is driven by the current config pick up implementation
+    # where it's not possible to specify an endpoint via ~/.aws/config
+    # and the current main code has hardcoded to localhost:8000
+    network_mode: host
+    depends_on:
+      - db
+
+  db:
+    image: amazon/dynamodb-local:1.15.0
+    command:
+      - -XX:+UseContainerSupport
+      - -jar
+      - DynamoDBLocal.jar
+      - -sharedDb
+      - -inMemory
+    ports:
+      - "8000:8000"
+
+networks:
+  backend:

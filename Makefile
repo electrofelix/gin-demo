@@ -18,8 +18,9 @@ lint: vendor golangci-lint-config.yaml
 	@PATH=$(GOBIN):${PATH} golangci-lint run --config golangci-lint-config.yaml
 .PHONY: lint
 
+# CGO_ENABLED=0 allows running directly in scratch
 $(NAME): vendor $(shell find . -name \*.go)
-	go build -o bin/$@ ./cmd/$@
+	CGO_ENABLED=0 go build -o bin/$@ ./cmd/$@
 
 build: $(NAME)
 .PHONY: build
