@@ -63,7 +63,12 @@ func (uc *UserController) RegisterRoutes(router *gin.Engine) {
 func (uc *UserController) create(ctx *gin.Context) {
 	// should consider separate objects for internal vs external representations
 	var user entity.User
-	ctx.BindJSON(&user)
+	err := ctx.BindJSON(&user)
+	if err != nil {
+		ctx.AbortWithStatusJSON(400, gin.H{"error": err.Error()})
+
+		return
+	}
 
 	password, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.MinCost)
 	if err != nil {
@@ -196,7 +201,13 @@ func (uc *UserController) update(ctx *gin.Context) {
 	email := ctx.Param("email")
 
 	var userUpdate entity.User
-	ctx.BindJSON(&userUpdate)
+	err := ctx.BindJSON(&userUpdate)
+	if err != nil {
+		ctx.AbortWithStatusJSON(400, gin.H{"error": err.Error()})
+
+		return
+	}
+
 
 	user, err := uc.service.Get(ctx, email)
 	if err != nil {

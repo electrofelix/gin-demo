@@ -86,6 +86,10 @@ func loadAWSConfig(ccmd *cobra.Command) (aws.Config, error) {
 func run(ccmd *cobra.Command, args []string) error {
 
 	awsCfg, err := loadAWSConfig(ccmd)
+	if err != nil {
+		return err
+	}
+
 	dbClient := dynamodb.NewFromConfig(awsCfg)
 	// table should be provided via a config option
 	svc := service.New(dbClient, "user-table")
