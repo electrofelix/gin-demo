@@ -196,6 +196,8 @@ func (us *UserService) ValidateCredentials(ctx context.Context, credentials enti
 
 	err = us.store.Put(ctx, user)
 	if err != nil {
+		us.logger.Errorf("failed to update user '%s', last login time unexpected error: %v", credentials.Email, err)
+
 		return entity.ErrInternalError
 	}
 

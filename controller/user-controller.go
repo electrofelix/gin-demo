@@ -143,7 +143,7 @@ func (uc *UserController) login(ctx *gin.Context) {
 
 	err = uc.service.ValidateCredentials(ctx, credentials)
 	if err != nil {
-		if errors.Is(err, entity.ErrNotFound) {
+		if errors.Is(err, entity.ErrNotFound) || errors.Is(err, entity.ErrBadCredentials) {
 			ctx.AbortWithStatusJSON(401, gin.H{"error": "Invalid Email or Password"})
 
 			return
@@ -167,7 +167,6 @@ func (uc *UserController) update(ctx *gin.Context) {
 
 		return
 	}
-
 
 	user, err := uc.service.Update(ctx, email, userUpdate)
 	if err != nil {
