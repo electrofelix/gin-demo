@@ -41,10 +41,10 @@ func New(service UserService, router gin.IRoutes, opts ...Option) *UserControlle
 	controller.logger.Info("UserController registering routes")
 
 	router.GET("/users", controller.list)
-	router.GET("/users/:email", controller.get)
+	router.GET("/users/:id", controller.get)
 	router.POST("/users", controller.create)
-	router.DELETE("/users/:email", controller.delete)
-	router.PATCH("/users/:email", controller.update)
+	router.DELETE("/users/:id", controller.delete)
+	router.PATCH("/users/:id", controller.update)
 	router.POST("/login", controller.login)
 
 	return controller
@@ -84,9 +84,9 @@ func (uc *UserController) create(ctx *gin.Context) {
 }
 
 func (uc *UserController) delete(ctx *gin.Context) {
-	email := ctx.Param("email")
+	id := ctx.Param("id")
 
-	userResp, err := uc.service.Delete(ctx, email)
+	userResp, err := uc.service.Delete(ctx, id)
 	if err != nil {
 		if errors.Is(err, entity.ErrNotFound) {
 			ctx.AbortWithStatusJSON(404, err)
@@ -103,9 +103,9 @@ func (uc *UserController) delete(ctx *gin.Context) {
 }
 
 func (uc *UserController) get(ctx *gin.Context) {
-	email := ctx.Param("email")
+	id := ctx.Param("id")
 
-	userResp, err := uc.service.Get(ctx, email)
+	userResp, err := uc.service.Get(ctx, id)
 	if err != nil {
 		if errors.Is(err, entity.ErrNotFound) {
 			ctx.AbortWithStatusJSON(404, err)
@@ -158,7 +158,7 @@ func (uc *UserController) login(ctx *gin.Context) {
 }
 
 func (uc *UserController) update(ctx *gin.Context) {
-	email := ctx.Param("email")
+	id := ctx.Param("id")
 
 	var userUpdate entity.User
 	err := ctx.BindJSON(&userUpdate)
@@ -169,7 +169,7 @@ func (uc *UserController) update(ctx *gin.Context) {
 	}
 
 
-	user, err := uc.service.Update(ctx, email, userUpdate)
+	user, err := uc.service.Update(ctx, id, userUpdate)
 	if err != nil {
 		if errors.Is(err, entity.ErrNotFound) {
 			ctx.AbortWithStatusJSON(404, err)
