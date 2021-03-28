@@ -154,3 +154,23 @@ func (mr *MockDynamoDBAPIMockRecorder) Scan(arg0, arg1 interface{}, arg2 ...inte
 	varargs := append([]interface{}{arg0, arg1}, arg2...)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Scan", reflect.TypeOf((*MockDynamoDBAPI)(nil).Scan), varargs...)
 }
+
+// TransactWriteItems mocks base method.
+func (m *MockDynamoDBAPI) TransactWriteItems(arg0 context.Context, arg1 *dynamodb.TransactWriteItemsInput, arg2 ...func(*dynamodb.Options)) (*dynamodb.TransactWriteItemsOutput, error) {
+	m.ctrl.T.Helper()
+	varargs := []interface{}{arg0, arg1}
+	for _, a := range arg2 {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "TransactWriteItems", varargs...)
+	ret0, _ := ret[0].(*dynamodb.TransactWriteItemsOutput)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// TransactWriteItems indicates an expected call of TransactWriteItems.
+func (mr *MockDynamoDBAPIMockRecorder) TransactWriteItems(arg0, arg1 interface{}, arg2 ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]interface{}{arg0, arg1}, arg2...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "TransactWriteItems", reflect.TypeOf((*MockDynamoDBAPI)(nil).TransactWriteItems), varargs...)
+}

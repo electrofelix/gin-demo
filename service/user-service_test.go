@@ -23,6 +23,7 @@ func TestUserService_Create(t *testing.T) {
 		svc := service.New(mockStore)
 
 		user := entity.User{
+			Id:    xid.New().String(),
 			Email: "user1@test.com",
 			Name:  "test-user",
 		}
@@ -36,14 +37,6 @@ func TestUserService_Create(t *testing.T) {
 		_, err := svc.Create(context.Background(), user)
 		assert.NoError(t, err)
 	})
-
-	t.Run("missing-id", func(t *testing.T) {
-		mockStore := mocks.NewMockUserStore(ctrl)
-		svc := service.New(mockStore)
-
-		_, err := svc.Create(context.Background(), entity.User{})
-		assert.ErrorIs(t, err, entity.ErrIDMissing)
-	})
 }
 
 func TestUserService_Delete(t *testing.T) {
@@ -54,14 +47,15 @@ func TestUserService_Delete(t *testing.T) {
 		svc := service.New(mockStore)
 
 		user := entity.User{
+			Id:    xid.New().String(),
 			Email: "user1@test.com",
 			Name:  "test-user",
 		}
 
-		mockStore.EXPECT().Get(gomock.Any(), gomock.Any()).Return(&user, nil)
+		mockStore.EXPECT().GetById(gomock.Any(), gomock.Any()).Return(&user, nil)
 		mockStore.EXPECT().Delete(gomock.Any(), gomock.Any()).Return(nil)
 
-		got, err := svc.Delete(context.Background(), user.Email)
+		got, err := svc.Delete(context.Background(), user.Id)
 		require.NoError(t, err)
 
 		assert.Equal(t, user, got)
@@ -71,9 +65,9 @@ func TestUserService_Delete(t *testing.T) {
 		mockStore := mocks.NewMockUserStore(ctrl)
 		svc := service.New(mockStore)
 
-		mockStore.EXPECT().Get(gomock.Any(), gomock.Any()).Return(nil, entity.ErrNotFound)
+		mockStore.EXPECT().GetById(gomock.Any(), gomock.Any()).Return(nil, entity.ErrNotFound)
 
-		got, err := svc.Delete(context.Background(), "any-email@test.com")
+		got, err := svc.Delete(context.Background(), xid.New().String())
 		if assert.ErrorIs(t, err, entity.ErrNotFound) {
 			assert.Equal(t, entity.User{}, got)
 		}
@@ -88,13 +82,14 @@ func TestUserService_Get(t *testing.T) {
 		svc := service.New(mockStore)
 
 		user := entity.User{
+			Id:    xid.New().String(),
 			Email: "user1@example.com",
 			Name:  "test-user",
 		}
 
-		mockStore.EXPECT().Get(gomock.Any(), gomock.Any()).Return(&user, nil)
+		mockStore.EXPECT().GetById(gomock.Any(), gomock.Any()).Return(&user, nil)
 
-		got, err := svc.Get(context.Background(), user.Email)
+		got, err := svc.Get(context.Background(), user.Id)
 		require.NoError(t, err)
 
 		assert.Equal(t, user, got)
@@ -112,7 +107,7 @@ func TestUserService_Get(t *testing.T) {
 		mockStore := mocks.NewMockUserStore(ctrl)
 		svc := service.New(mockStore)
 
-		mockStore.EXPECT().Get(gomock.Any(), gomock.Any()).Return(nil, entity.ErrNotFound)
+		mockStore.EXPECT().GetById(gomock.Any(), gomock.Any()).Return(nil, entity.ErrNotFound)
 
 		user, err := svc.Get(context.Background(), xid.New().String())
 		require.Error(t, err)
@@ -131,10 +126,12 @@ func TestUserService_List(t *testing.T) {
 
 		users := []entity.User{
 			{
+				Id:    xid.New().String(),
 				Email: "user1@test.com",
 				Name:  "test-user1",
 			},
 			{
+				Id:    xid.New().String(),
 				Email: "user2@test.com",
 				Name:  "test-user2",
 			},
@@ -157,6 +154,7 @@ func TestUserService_Put(t *testing.T) {
 		svc := service.New(mockStore)
 
 		user := entity.User{
+			Id:    xid.New().String(),
 			Email: "user1@test.com",
 			Name:  "test-user1",
 		}
@@ -187,17 +185,20 @@ func TestUserService_Update(t *testing.T) {
 		svc := service.New(mockStore)
 
 		user := entity.User{
+			Id:       xid.New().String(),
 			Email:    "user1@test.com",
 			Name:     "test-user1",
 			Password: "some-password",
 		}
 
-		userUpdate := entity.User{}
+		userUpdate := entity.User{
+			Id: xid.New().String(),
+		}
 
-		mockStore.EXPECT().Get(gomock.Any(), gomock.Any()).Return(&user, nil)
+		mockStore.EXPECT().GetById(gomock.Any(), gomock.Any()).Return(&user, nil)
 		mockStore.EXPECT().Put(gomock.Any(), gomock.Any()).Return(nil)
 
-		got, err := svc.Update(context.Background(), user.Email, userUpdate)
+		got, err := svc.Update(context.Background(), user.Id, userUpdate)
 		require.NoError(t, err)
 
 		assert.Equal(t, user.Email, got.Email)
@@ -211,6 +212,7 @@ func TestUserService_Update(t *testing.T) {
 		svc := service.New(mockStore)
 
 		user := entity.User{
+			Id:    xid.New().String(),
 			Email: "user1@test.com",
 			Name:  "test-user1",
 		}
@@ -220,10 +222,10 @@ func TestUserService_Update(t *testing.T) {
 			Name:  "test-user2",
 		}
 
-		mockStore.EXPECT().Get(gomock.Any(), gomock.Any()).Return(&user, nil)
+		mockStore.EXPECT().GetById(gomock.Any(), gomock.Any()).Return(&user, nil)
 		mockStore.EXPECT().Put(gomock.Any(), gomock.Any()).Return(nil)
 
-		got, err := svc.Update(context.Background(), user.Email, userUpdate)
+		got, err := svc.Update(context.Background(), user.Id, userUpdate)
 		require.NoError(t, err)
 
 		assert.Equal(t, user.Email, got.Email)
@@ -236,6 +238,7 @@ func TestUserService_Update(t *testing.T) {
 		svc := service.New(mockStore)
 
 		user := entity.User{
+			Id:       xid.New().String(),
 			Email:    "user1@test.com",
 			Name:     "test-user1",
 			Password: "some-password",
@@ -245,7 +248,7 @@ func TestUserService_Update(t *testing.T) {
 			Password: "some-password",
 		}
 
-		mockStore.EXPECT().Get(gomock.Any(), gomock.Any()).Return(&user, nil)
+		mockStore.EXPECT().GetById(gomock.Any(), gomock.Any()).Return(&user, nil)
 		mockStore.EXPECT().Put(gomock.Any(), gomock.Any()).Do(
 			func(ctx context.Context, user *entity.User) {
 				assert.NotEqual(t, "some-password", user.Password)
@@ -255,14 +258,14 @@ func TestUserService_Update(t *testing.T) {
 			},
 		).Return(nil)
 
-		got, err := svc.Update(context.Background(), user.Email, userUpdate)
+		got, err := svc.Update(context.Background(), user.Id, userUpdate)
 		require.NoError(t, err)
 
 		assert.Equal(t, user.Email, got.Email)
 		assert.Equal(t, user.Name, got.Name)
 	})
 
-	t.Run("update-email", func(t *testing.T) {
+	t.Run("no-id", func(t *testing.T) {
 		mockStore := mocks.NewMockUserStore(ctrl)
 		svc := service.New(mockStore)
 
@@ -275,19 +278,13 @@ func TestUserService_Update(t *testing.T) {
 		mockStore := mocks.NewMockUserStore(ctrl)
 		svc := service.New(mockStore)
 
-		user := entity.User{
-			Email: "user1@test.com",
-			Name:  "test-user1",
-		}
-
 		userUpdate := entity.User{
 			Email: "user2@test.com",
 		}
 
-		mockStore.EXPECT().Get(gomock.Any(), gomock.Any()).Return(&user, nil)
-		_, err := svc.Update(context.Background(), user.Email, userUpdate)
+		_, err := svc.Update(context.Background(), "a-bad-id", userUpdate)
 
-		assert.ErrorIs(t, err, entity.ErrUpdateFieldNotAllowed)
+		assert.ErrorIs(t, err, entity.ErrIDInvalid)
 	})
 }
 
@@ -328,7 +325,7 @@ func TestUserService_ValidateCredentials(t *testing.T) {
 		svc := service.New(mockStore)
 		user, userLogin := setupUserLoginResponses(t, mockStore, svc)
 
-		mockStore.EXPECT().Get(gomock.Any(), gomock.Any()).Return(&user, nil)
+		mockStore.EXPECT().GetByEmail(gomock.Any(), gomock.Any()).Return(&user, nil)
 		mockStore.EXPECT().Put(gomock.Any(), gomock.Any()).Return(nil)
 
 		err := svc.ValidateCredentials(context.Background(), userLogin)
@@ -340,7 +337,7 @@ func TestUserService_ValidateCredentials(t *testing.T) {
 		svc := service.New(mockStore)
 		user, userLogin := setupUserLoginResponses(t, mockStore, svc)
 
-		mockStore.EXPECT().Get(gomock.Any(), gomock.Any()).Return(&user, nil)
+		mockStore.EXPECT().GetByEmail(gomock.Any(), gomock.Any()).Return(&user, nil)
 
 		userLogin.Password = "the-wrong-password"
 
@@ -353,7 +350,7 @@ func TestUserService_ValidateCredentials(t *testing.T) {
 		svc := service.New(mockStore)
 		_, userLogin := setupUserLoginResponses(t, mockStore, svc)
 
-		mockStore.EXPECT().Get(gomock.Any(), gomock.Any()).Return(nil, entity.ErrNotFound)
+		mockStore.EXPECT().GetByEmail(gomock.Any(), gomock.Any()).Return(nil, entity.ErrNotFound)
 
 		err := svc.ValidateCredentials(context.Background(), userLogin)
 		assert.ErrorIs(t, err, entity.ErrBadCredentials)
@@ -364,7 +361,7 @@ func TestUserService_ValidateCredentials(t *testing.T) {
 		svc := service.New(mockStore)
 		_, userLogin := setupUserLoginResponses(t, mockStore, svc)
 
-		mockStore.EXPECT().Get(gomock.Any(), gomock.Any()).Return(nil, entity.ErrIDMissing)
+		mockStore.EXPECT().GetByEmail(gomock.Any(), gomock.Any()).Return(nil, entity.ErrIDMissing)
 
 		err := svc.ValidateCredentials(context.Background(), userLogin)
 		assert.ErrorIs(t, err, entity.ErrInternalError)

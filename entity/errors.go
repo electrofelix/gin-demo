@@ -4,7 +4,8 @@ import "errors"
 
 var (
 	ErrIDCollision = errors.New("user already exists")
-	ErrIDMissing   = errors.New("user email cannot be blank")
+	ErrIDMissing   = errors.New("user Id cannot be blank")
+	ErrIDInvalid   = errors.New("user Id is an invalid format")
 	ErrNotFound    = errors.New("user does not exist")
 
 	ErrInternalError         = errors.New("internal server error")

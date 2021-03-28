@@ -7,6 +7,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/rs/xid"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/crypto/bcrypt"
 
@@ -16,7 +17,8 @@ import (
 type UserStore interface {
 	Create(context.Context, *entity.User) error
 	Delete(context.Context, string) error
-	Get(context.Context, string) (*entity.User, error)
+	GetByEmail(context.Context, string) (*entity.User, error)
+	GetById(context.Context, string) (*entity.User, error)
 	List(context.Context) ([]entity.User, error)
 	Put(context.Context, *entity.User) error
 }
@@ -42,11 +44,9 @@ func New(store UserStore, options ...Option) *UserService {
 }
 
 func (us *UserService) Create(ctx context.Context, user entity.User) (entity.User, error) {
-	if user.Email == "" {
-		return entity.User{}, entity.ErrIDMissing
-	}
+	// create the new user id
+	user.Id = xid.New().String()
 
-	// move password encryption here along with any additional checks
 	password, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.MinCost)
 	if err != nil {
 		us.logger.Errorf("failed to encrypted password text for new user: %s\n", user.Email)
@@ -66,8 +66,8 @@ func (us *UserService) Create(ctx context.Context, user entity.User) (entity.Use
 	return user, nil
 }
 
-func (us *UserService) Delete(ctx context.Context, email string) (entity.User, error) {
-	user, err := us.Get(ctx, email)
+func (us *UserService) Delete(ctx context.Context, id string) (entity.User, error) {
+	user, err := us.Get(ctx, id)
 	if err != nil {
 		us.logger.Errorf("error retrieving item before delete: %v", err)
 
@@ -78,7 +78,7 @@ func (us *UserService) Delete(ctx context.Context, email string) (entity.User, e
 	// it. For audit purposes would be better to mark deleted initially before
 	// removal, or scrub the password in case it's still referenced by something
 	// else
-	err = us.store.Delete(ctx, email)
+	err = us.store.Delete(ctx, id)
 	if err != nil {
 		return entity.User{}, err
 	}
@@ -86,12 +86,12 @@ func (us *UserService) Delete(ctx context.Context, email string) (entity.User, e
 	return user, nil
 }
 
-func (us *UserService) Get(ctx context.Context, email string) (entity.User, error) {
-	if email == "" {
-		return entity.User{}, entity.ErrIDMissing
+func (us *UserService) Get(ctx context.Context, id string) (entity.User, error) {
+	if err := validateId(id); err != nil {
+		return entity.User{}, err
 	}
 
-	user, err := us.store.Get(ctx, email)
+	user, err := us.store.GetById(ctx, id)
 	if err != nil {
 		return entity.User{}, err
 	}
@@ -123,11 +123,9 @@ func (us *UserService) List(ctx context.Context) ([]entity.User, error) {
 }
 
 func (us *UserService) Put(ctx context.Context, user entity.User) (entity.User, error) {
-	if user.Email == "" {
-		return entity.User{}, entity.ErrIDMissing
+	if err := validateId(user.Id); err != nil {
+		return entity.User{}, err
 	}
-
-	// move password encryption here along with any additional checks
 
 	err := us.store.Put(ctx, &user)
 	if err != nil {
@@ -137,26 +135,20 @@ func (us *UserService) Put(ctx context.Context, user entity.User) (entity.User, 
 	return user, nil
 }
 
-func (us *UserService) Update(ctx context.Context, email string, user entity.User) (entity.User, error) {
-	if email == "" {
-		return entity.User{}, entity.ErrIDMissing
-	}
-
-	currentUser, err := us.Get(ctx, email)
-	if err != nil {
+func (us *UserService) Update(ctx context.Context, id string, user entity.User) (entity.User, error) {
+	if err := validateId(id); err != nil {
 		return entity.User{}, err
 	}
 
-	if user.Email != "" && user.Email != currentUser.Email {
-		us.logger.Errorf("attempted to modify email of %s to %s\n", email, user.Email)
-
-		return entity.User{}, entity.ErrUpdateFieldNotAllowed
+	currentUser, err := us.Get(ctx, id)
+	if err != nil {
+		return entity.User{}, err
 	}
 
 	if user.Password != "" {
 		password, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.MinCost)
 		if err != nil {
-			us.logger.Errorf("failed to encrypted password text for new user: %s\n", email)
+			us.logger.Errorf("failed to encrypted password text for new user: %s\n", id)
 
 			return entity.User{}, entity.ErrInternalError
 		}
@@ -173,7 +165,7 @@ func (us *UserService) Update(ctx context.Context, email string, user entity.Use
 
 	err = us.store.Put(ctx, &currentUser)
 	if err != nil {
-		us.logger.Errorf("failed to store updated user information: %s\n", currentUser.Email)
+		us.logger.Errorf("failed to store updated user information: %s\n", currentUser.Id)
 		return entity.User{}, err
 	}
 
@@ -183,7 +175,7 @@ func (us *UserService) Update(ctx context.Context, email string, user entity.Use
 }
 
 func (us *UserService) ValidateCredentials(ctx context.Context, credentials entity.UserLogin) error {
-	user, err := us.store.Get(ctx, credentials.Email)
+	user, err := us.store.GetByEmail(ctx, credentials.Email)
 	if err != nil {
 		if errors.Is(err, entity.ErrNotFound) {
 			return entity.ErrBadCredentials
@@ -205,6 +197,18 @@ func (us *UserService) ValidateCredentials(ctx context.Context, credentials enti
 	err = us.store.Put(ctx, user)
 	if err != nil {
 		return entity.ErrInternalError
+	}
+
+	return nil
+}
+
+func validateId(id string) error {
+	if id == "" {
+		return entity.ErrIDMissing
+	}
+
+	if _, err := xid.FromString(id); err != nil {
+		return entity.ErrIDInvalid
 	}
 
 	return nil
