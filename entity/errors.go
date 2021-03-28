@@ -3,7 +3,8 @@ package entity
 import "errors"
 
 var (
-	ErrIDCollision = errors.New("user already exists")
+	ErrEmailDuplicate = errors.New("email already associated with annother user")
+
 	ErrIDMissing   = errors.New("user Id cannot be blank")
 	ErrIDInvalid   = errors.New("user Id is an invalid format")
 	ErrNotFound    = errors.New("user does not exist")

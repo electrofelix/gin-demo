@@ -68,7 +68,7 @@ func (uc *UserController) create(ctx *gin.Context) {
 
 	userResp, err := uc.service.Create(ctx, user)
 	if err != nil {
-		if errors.Is(err, entity.ErrIDCollision) {
+		if errors.Is(err, entity.ErrEmailDuplicate) {
 			// could potentially return 201 here as well
 			ctx.AbortWithStatusJSON(409, gin.H{"error": err.Error()})
 

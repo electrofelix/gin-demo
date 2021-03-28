@@ -11,8 +11,9 @@ import (
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
-	"github.com/electrofelix/gin-demo/entity"
 	"github.com/sirupsen/logrus"
+
+	"github.com/electrofelix/gin-demo/entity"
 )
 
 const (
@@ -152,9 +153,13 @@ func (us *UserStore) Create(ctx context.Context, user *entity.User) error {
 
 	_, err = us.dbClient.TransactWriteItems(ctx, &transaction)
 	if err != nil {
-		var ccfe *types.ConditionalCheckFailedException
-		if errors.As(err, &ccfe) {
-			return entity.ErrIDCollision
+		var errTransaction *types.TransactionCanceledException
+		if errors.As(err, &errTransaction) {
+			if *errTransaction.CancellationReasons[1].Code == "ConditionalCheckFailed" {
+				// second item insertion failed means email already in use
+
+				return entity.ErrEmailDuplicate
+			}
 		}
 
 		// some other error, such as capacity provisioned exceeded or failure

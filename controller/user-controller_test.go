@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -166,7 +167,7 @@ func TestUserController_create(t *testing.T) {
 		recorder := httptest.NewRecorder()
 
 		mockService.EXPECT().Create(gomock.Any(), gomock.Any()).Return(
-			entity.User{}, entity.ErrIDCollision,
+			entity.User{}, entity.ErrEmailDuplicate,
 		)
 
 		_, jsonBody := setupTestUser(t)
@@ -176,6 +177,6 @@ func TestUserController_create(t *testing.T) {
 		engine.ServeHTTP(recorder, req)
 
 		assert.Equal(t, 409, recorder.Code)
-		assert.Equal(t, "{\"error\":\"user already exists\"}", recorder.Body.String())
+		assert.Equal(t, fmt.Sprintf("{\"error\":\"%s\"}", entity.ErrEmailDuplicate.Error()), recorder.Body.String())
 	})
 }

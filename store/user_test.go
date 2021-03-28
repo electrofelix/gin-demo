@@ -56,18 +56,25 @@ func TestUserStore_Create(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
-	t.Run("duplicate email", func(t *testing.T) {
+	t.Run("duplicate-email", func(t *testing.T) {
 		mockDBClient := mocks.NewMockDynamoDBAPI(ctrl)
 		dataStore := store.NewUserStore(mockDBClient, tableName)
 
 		mockDBClient.EXPECT().TransactWriteItems(gomock.Any(), gomock.Any()).Return(
-			nil, &types.ConditionalCheckFailedException{
-				Message: aws.String("simulated conditional check failed"),
+			nil, &types.TransactionCanceledException{
+				CancellationReasons: []types.CancellationReason{
+					{
+						Code: aws.String("None"),
+					},
+					{
+						Code: aws.String("ConditionalCheckFailed"),
+					},
+				},
 			},
 		)
 
 		err := dataStore.Create(context.Background(), &entity.User{})
-		assert.Equal(t, err, entity.ErrIDCollision)
+		assert.Equal(t, err, entity.ErrEmailDuplicate)
 	})
 }
 
