@@ -177,6 +177,13 @@ func (uc *UserController) update(ctx *gin.Context) {
 			return
 		}
 
+		if errors.Is(err, entity.ErrEmailDuplicate) {
+			// could potentially return 201 here as well
+			ctx.AbortWithStatusJSON(409, gin.H{"error": err.Error()})
+
+			return
+		}
+
 		ctx.AbortWithStatusJSON(500, gin.H{"error": "Internal Error"})
 
 		return

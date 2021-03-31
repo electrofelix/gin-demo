@@ -21,6 +21,7 @@ type UserStore interface {
 	GetById(context.Context, string) (*entity.User, error)
 	List(context.Context) ([]entity.User, error)
 	Put(context.Context, *entity.User) error
+	Update(context.Context, *entity.User) error
 }
 
 type UserService struct {
@@ -156,6 +157,10 @@ func (us *UserService) Update(ctx context.Context, id string, user entity.User) 
 		currentUser.Password = string(password)
 	}
 
+	if user.Email != "" {
+		currentUser.Email = user.Email
+	}
+
 	// should really have separate structs for requests with pointers for field values to ensure
 	// possible to determine when a specific field should be ignored as opposed to explicit request
 	// to unset
@@ -163,7 +168,7 @@ func (us *UserService) Update(ctx context.Context, id string, user entity.User) 
 		currentUser.Name = user.Name
 	}
 
-	err = us.store.Put(ctx, &currentUser)
+	err = us.store.Update(ctx, &currentUser)
 	if err != nil {
 		us.logger.Errorf("failed to store updated user information: %s\n", currentUser.Id)
 		return entity.User{}, err

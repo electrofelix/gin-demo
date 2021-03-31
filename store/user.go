@@ -390,6 +390,8 @@ func (us *UserStore) Update(ctx context.Context, user *entity.User) error {
 
 	currentUser, err := us.GetById(ctx, user.Id)
 	if err != nil {
+		us.logger.Errorf("failed to retrieve requested user to update: %s", user.Id)
+
 		return err
 	}
 
@@ -454,6 +456,17 @@ func (us *UserStore) Update(ctx context.Context, user *entity.User) error {
 
 	_, err = us.dbClient.TransactWriteItems(ctx, &transaction)
 	if err != nil {
+		var errTransaction *types.TransactionCanceledException
+		if errors.As(err, &errTransaction) {
+			failedReasons := errTransaction.CancellationReasons
+
+			if len(failedReasons) >= 2 && *failedReasons[1].Code == "ConditionalCheckFailed" {
+				// second item insertion failed means email already in use
+
+				return entity.ErrEmailDuplicate
+			}
+		}
+
 		us.logger.Errorf("error putting item %s: %v", key, user.Id)
 
 		return err
